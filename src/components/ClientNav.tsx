@@ -1,9 +1,10 @@
-import { ShoppingCart, User } from "lucide-react";
+import { ShoppingCart, User, Settings } from "lucide-react";
 import { Button } from "./ui/button";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export const ClientNav = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   
   return (
     <nav className="border-b">
@@ -29,16 +30,18 @@ export const ClientNav = () => {
             >
               Categories
             </Link>
-            <Link 
-              to="/client/dashboard" 
-              className={`${location.pathname === '/client/dashboard' ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground transition-colors`}
-            >
-              Dashboard
-            </Link>
           </div>
         </div>
         
         <div className="flex items-center space-x-4">
+          <Button 
+            variant="outline"
+            onClick={() => navigate('/admin')}
+            className="flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Switch to Admin
+          </Button>
           <Button variant="ghost" size="icon">
             <ShoppingCart className="h-5 w-5" />
           </Button>
