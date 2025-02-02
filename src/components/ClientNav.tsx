@@ -29,15 +29,21 @@ export const ClientNav = () => {
             >
               Categories
             </Link>
+            <Link 
+              to="/client/dashboard" 
+              className={`${location.pathname === '/client/dashboard' ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground transition-colors`}
+            >
+              Dashboard
+            </Link>
           </div>
         </div>
         
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon">
-            <ShoppingCart className="w-5 h-5" />
+            <ShoppingCart className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon">
-            <User className="w-5 h-5" />
+            <User className="h-5 w-5" />
           </Button>
         </div>
       </div>
