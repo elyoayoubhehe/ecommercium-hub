@@ -1,6 +1,7 @@
 import { ShoppingCart, User, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { CartSheet } from "./cart/CartSheet";
 
 export const ClientNav = () => {
   const location = useLocation();
@@ -42,10 +43,8 @@ export const ClientNav = () => {
             <Settings className="w-4 h-4" />
             Switch to Admin
           </Button>
-          <Button variant="ghost" size="icon">
-            <ShoppingCart className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon">
+          <CartSheet />
+          <Button variant="ghost" size="icon" onClick={() => navigate('/client/profile')}>
             <User className="h-5 w-5" />
           </Button>
         </div>

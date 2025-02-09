@@ -9,6 +9,7 @@ import AdminHome from "./pages/AdminHome";
 import AdminProducts from "./pages/AdminProducts";
 import Products from "./pages/Products";
 import Categories from "./pages/Categories";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/client" element={<ClientHome />} />
           <Route path="/client/products" element={<Products />} />
           <Route path="/client/categories" element={<Categories />} />
+          <Route path="/client/profile" element={<Profile />} />
           <Route path="/admin" element={<AdminHome />} />
           <Route path="/admin/products" element={<AdminProducts />} />
           <Route path="*" element={<NotFound />} />
