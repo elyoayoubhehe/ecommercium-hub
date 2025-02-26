@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { ShoppingCart, Heart, Package, History } from "lucide-react";
 import { ClientNav } from "@/components/ClientNav";
+import { Link } from 'react-router-dom';
 
 const ClientHome = () => {
   return (
