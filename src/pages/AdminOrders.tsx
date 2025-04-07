@@ -27,7 +27,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { Search, MoreVertical, Eye, Download, Filter, Package, DollarSign, TrendingUp, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useOrders } from "@/contexts/OrdersContext";
+import { useProducts } from "@/contexts/ProductsContext";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   LineChart,
@@ -41,116 +43,43 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-
-interface Order {
-  id: string;
-  date: string;
-  customerName: string;
-  customerEmail: string;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
-  total: number;
-  items: {
-    id: string;
-    name: string;
-    quantity: number;
-    price: number;
-  }[];
-  shippingAddress: string;
-  paymentMethod: string;
-}
-
-// Mock data - replace with real data later
-const mockOrders: Order[] = [
-  {
-    id: "ORD-001",
-    date: "2024-02-22",
-    customerName: "John Doe",
-    customerEmail: "john@example.com",
-    status: "delivered",
-    total: 299.99,
-    items: [
-      { id: "1", name: "Product 1", quantity: 2, price: 99.99 },
-      { id: "2", name: "Product 2", quantity: 1, price: 100.01 }
-    ],
-    shippingAddress: "123 Main St, City, Country",
-    paymentMethod: "Credit Card"
-  },
-  {
-    id: "ORD-002",
-    date: "2024-02-21",
-    customerName: "Jane Smith",
-    customerEmail: "jane@example.com",
-    status: "processing",
-    total: 199.99,
-    items: [
-      { id: "3", name: "Product 3", quantity: 1, price: 199.99 }
-    ],
-    shippingAddress: "456 Oak St, City, Country",
-    paymentMethod: "PayPal"
-  }
-];
-
-// Mock analytics data
-const mockSalesData = [
-  { date: '2024-02-16', sales: 1200 },
-  { date: '2024-02-17', sales: 1900 },
-  { date: '2024-02-18', sales: 1600 },
-  { date: '2024-02-19', sales: 2100 },
-  { date: '2024-02-20', sales: 1800 },
-  { date: '2024-02-21', sales: 2300 },
-  { date: '2024-02-22', sales: 2500 }
-];
-
-const mockCategoryData = [
-  { category: 'Electronics', sales: 12500 },
-  { category: 'Clothing', sales: 9800 },
-  { category: 'Books', sales: 5600 },
-  { category: 'Home', sales: 7900 },
-  { category: 'Sports', sales: 4500 }
-];
-
-export const ordersState = {
-  orders: mockOrders,
-  setOrders: null as any
-};
+import { Badge } from "@/components/ui/badge";
+import { Order } from "@/contexts/OrdersContext";
 
 export default function AdminOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isViewingDetails, setIsViewingDetails] = useState(false);
-  const [dateRange, setDateRange] = useState("7days");
+  
+  const { orders, stats, updateOrderStatus } = useOrders();
+  const { products } = useProducts();
 
-  // Use React Query to manage orders state
-  const { data: orders = mockOrders } = useQuery({
-    queryKey: ['orders'],
-    queryFn: () => Promise.resolve(mockOrders)
-  });
+  // Create chart data from real stats
+  const salesChartData = Object.entries(stats.salesByDate).map(([date, sales]) => ({
+    date,
+    sales
+  }));
+
+  const categoryChartData = Object.entries(stats.salesByCategory).map(([category, sales]) => ({
+    category,
+    sales
+  }));
 
   const filteredOrders = orders.filter(order => 
-    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
-  const totalOrders = orders.length;
-  const averageOrderValue = totalSales / totalOrders;
-  const pendingOrders = orders.filter(order => order.status === "pending").length;
-
   const exportToCSV = () => {
-    const headers = ["Order ID", "Date", "Customer", "Email", "Status", "Total", "Items", "Shipping Address", "Payment Method"];
+    const headers = ["Order ID", "Date", "Status", "Total", "Items"];
     const csvContent = [
       headers.join(","),
       ...filteredOrders.map(order => [
         order.id,
-        order.date,
-        order.customerName,
-        order.customerEmail,
+        order.createdAt,
         order.status,
         order.total,
-        order.items.length,
-        order.shippingAddress,
-        order.paymentMethod
+        order.items.length
       ].join(","))
     ].join("\n");
 
@@ -169,17 +98,24 @@ export default function AdminOrders() {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-700";
-      case "processing":
+      case "in-progress":
         return "bg-blue-100 text-blue-700";
-      case "shipped":
-        return "bg-purple-100 text-purple-700";
-      case "delivered":
+      case "completed":
         return "bg-green-100 text-green-700";
       case "cancelled":
         return "bg-red-100 text-red-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
+  };
+
+  const handleUpdateStatus = (orderId: string, status: Order["status"]) => {
+    updateOrderStatus(orderId, status);
+    toast.success(`Order ${orderId} updated to ${status}`);
+  };
+
+  const getProductDetails = (productId: string) => {
+    return products.find(p => p.id === productId);
   };
 
   return (
@@ -210,25 +146,25 @@ export default function AdminOrders() {
           <Card className="p-6">
             <DollarSign className="w-8 h-8 text-primary mb-2" />
             <h3 className="text-sm font-medium text-muted-foreground">Total Sales</h3>
-            <p className="text-2xl font-bold">${totalSales.toFixed(2)}</p>
+            <p className="text-2xl font-bold">${stats.totalSales.toFixed(2)}</p>
           </Card>
           
           <Card className="p-6">
             <Package className="w-8 h-8 text-secondary mb-2" />
             <h3 className="text-sm font-medium text-muted-foreground">Total Orders</h3>
-            <p className="text-2xl font-bold">{totalOrders}</p>
+            <p className="text-2xl font-bold">{stats.totalOrders}</p>
           </Card>
           
           <Card className="p-6">
             <TrendingUp className="w-8 h-8 text-accent mb-2" />
             <h3 className="text-sm font-medium text-muted-foreground">Average Order Value</h3>
-            <p className="text-2xl font-bold">${averageOrderValue.toFixed(2)}</p>
+            <p className="text-2xl font-bold">${stats.averageOrderValue.toFixed(2)}</p>
           </Card>
           
           <Card className="p-6">
             <Package className="w-8 h-8 text-yellow-500 mb-2" />
             <h3 className="text-sm font-medium text-muted-foreground">Pending Orders</h3>
-            <p className="text-2xl font-bold">{pendingOrders}</p>
+            <p className="text-2xl font-bold">{stats.pendingOrders + stats.inProgressOrders}</p>
           </Card>
         </div>
 
@@ -238,7 +174,7 @@ export default function AdminOrders() {
             <h3 className="text-lg font-semibold mb-4">Sales Trend</h3>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockSalesData}>
+                <LineChart data={salesChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -249,18 +185,18 @@ export default function AdminOrders() {
               </ResponsiveContainer>
             </div>
           </Card>
-
+          
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Sales by Category</h3>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockCategoryData}>
+                <BarChart data={categoryChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill="#2563eb" />
+                  <Bar dataKey="sales" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -274,125 +210,156 @@ export default function AdminOrders() {
               <TableRow>
                 <TableHead>Order ID</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Items</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{order.customerName}</p>
-                      <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>${order.total.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setIsViewingDetails(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredOrders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No orders found
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>{order.id}</TableCell>
+                    <TableCell>{format(new Date(order.createdAt), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{order.items.length} items</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(order.status)}>
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>${order.total.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedOrder(order);
+                            setIsViewingDetails(true);
+                          }}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'pending')}>
+                            Mark as Pending
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'in-progress')}>
+                            Mark as In Progress
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'completed')}>
+                            Mark as Completed
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'cancelled')}>
+                            Mark as Cancelled
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Card>
 
         {/* Order Details Dialog */}
-        <Dialog open={isViewingDetails} onOpenChange={setIsViewingDetails}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Order Details</DialogTitle>
-            </DialogHeader>
-            {selectedOrder && (
+        {selectedOrder && (
+          <Dialog open={isViewingDetails} onOpenChange={setIsViewingDetails}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Order Details: {selectedOrder.id}</DialogTitle>
+              </DialogHeader>
               <div className="space-y-6">
-                <div>
-                  <h4 className="font-semibold mb-2">Order Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Order ID</p>
-                      <p>{selectedOrder.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Date</p>
-                      <p>{new Date(selectedOrder.date).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(selectedOrder.status)}`}>
-                        {selectedOrder.status}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p>${selectedOrder.total.toFixed(2)}</p>
-                    </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Order Date</h3>
+                    <p>{format(new Date(selectedOrder.createdAt), 'PPP')}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Status</h3>
+                    <Badge className={getStatusColor(selectedOrder.status)}>
+                      {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                    </Badge>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold mb-2">Customer Information</h4>
-                  <div className="space-y-2">
-                    <p><span className="text-sm text-muted-foreground">Name:</span> {selectedOrder.customerName}</p>
-                    <p><span className="text-sm text-muted-foreground">Email:</span> {selectedOrder.customerEmail}</p>
-                    <p><span className="text-sm text-muted-foreground">Shipping Address:</span> {selectedOrder.shippingAddress}</p>
-                    <p><span className="text-sm text-muted-foreground">Payment Method:</span> {selectedOrder.paymentMethod}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Items</h3>
+                  <div className="border rounded-md divide-y">
+                    {selectedOrder.items.map((item) => {
+                      const product = getProductDetails(item.productId);
+                      return (
+                        <div key={item.productId} className="p-3 flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{product?.name || `Product ${item.productId}`}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Qty: {item.quantity} × ${item.price.toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="font-medium">${(item.quantity * item.price).toFixed(2)}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="font-semibold mb-2">Order Items</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedOrder.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>${item.price.toFixed(2)}</TableCell>
-                          <TableCell>${(item.quantity * item.price).toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Total</span>
+                    <span className="font-semibold">${selectedOrder.total.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsViewingDetails(false)}>
+                  Close
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button>Update Status</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => {
+                      handleUpdateStatus(selectedOrder.id, 'pending');
+                      setIsViewingDetails(false);
+                    }}>
+                      Mark as Pending
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      handleUpdateStatus(selectedOrder.id, 'in-progress');
+                      setIsViewingDetails(false);
+                    }}>
+                      Mark as In Progress
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      handleUpdateStatus(selectedOrder.id, 'completed');
+                      setIsViewingDetails(false);
+                    }}>
+                      Mark as Completed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      handleUpdateStatus(selectedOrder.id, 'cancelled');
+                      setIsViewingDetails(false);
+                    }}>
+                      Mark as Cancelled
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
     </div>
   );

@@ -1,0 +1,52 @@
+ECOMMERCIUM HUB - SETUP INSTRUCTIONS
+====================================
+
+Prerequisites:
+-------------
+1. Make sure you have Node.js installed
+2. Make sure you have Python installed
+3. Make sure ports 3001 and 8080 are free
+
+Setup Steps:
+-----------
+
+1. First, install Python dependencies:
+   cd backend
+   pip install flask==3.0.0
+   pip install flask-cors==4.0.0
+   pip install requests==2.31.0
+   pip install beautifulsoup4==4.12.2
+   pip install fake-useragent==1.4.0
+
+   -- OR use this single command --
+   pip install -r requirements.txt
+
+2. Install Node.js dependencies:
+   cd ..
+   npm install
+   npm install concurrently
+
+3. Run the application:
+   npm run dev
+
+This will start:
+- Backend server on http://localhost:3001
+- Frontend on http://localhost:8080
+
+Notes:
+------
+- The application will automatically open in your browser
+- The Amazon scraper might take a few seconds to fetch results
+- If you get any port conflicts, make sure nothing else is running on ports 3001 and 8080
+
+Troubleshooting:
+---------------
+If you get any errors:
+1. Make sure all dependencies are installed correctly
+2. Try running the servers separately:
+   - Backend: cd backend && python app.py
+   - Frontend: npm run dev
+
+To stop the application:
+- Press Ctrl+C in the terminal
+- If running separately, you'll need to stop both servers 

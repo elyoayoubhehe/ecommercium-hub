@@ -158,6 +158,8 @@ export const SHIPPING_METHODS: ShippingMethod[] = [
 ];
 
 interface CheckoutContextType {
+  state: CheckoutState;
+  setStep: (step: CheckoutStep) => void;
   currentStep: CheckoutState['step'];
   shippingAddress: Address | null;
   billingAddress: Address | null;
@@ -241,6 +243,10 @@ export const CheckoutProvider = ({ children }: { children: React.ReactNode }) =>
     dispatch({ type: 'RESET_CHECKOUT' });
   };
 
+  const setStep = (step: CheckoutStep) => {
+    dispatch({ type: 'SET_STEP', payload: step });
+  };
+
   // Load saved addresses and payment methods from localStorage
   useEffect(() => {
     const savedData = localStorage.getItem('checkoutData');
@@ -266,6 +272,8 @@ export const CheckoutProvider = ({ children }: { children: React.ReactNode }) =>
   return (
     <CheckoutContext.Provider
       value={{
+        state,
+        setStep,
         currentStep: state.step,
         shippingAddress: state.shippingAddress,
         billingAddress: state.billingAddress,

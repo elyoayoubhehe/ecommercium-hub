@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef, FormEvent, useState } from 'react';
 import { AdminNav } from '@/components/AdminNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -16,51 +18,89 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Edit, Trash } from 'lucide-react';
-
-interface Category {
-  id: string;
-  name: string;
-  description: string;
-  productCount: number;
-  status: 'active' | 'inactive';
-}
-
-const mockCategories: Category[] = [
-  {
-    id: '1',
-    name: 'Electronics',
-    description: 'Electronic devices and accessories',
-    productCount: 150,
-    status: 'active'
-  },
-  {
-    id: '2',
-    name: 'Fashion',
-    description: 'Clothing and accessories',
-    productCount: 300,
-    status: 'active'
-  },
-  {
-    id: '3',
-    name: 'Home & Living',
-    description: 'Home decor and furniture',
-    productCount: 200,
-    status: 'inactive'
-  }
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Search, MoreVertical, Edit, Trash, Plus } from 'lucide-react';
+import { useCategories, Category } from "@/contexts/CategoriesContext";
+import { toast } from 'sonner';
 
 const AdminCategories: React.FC = () => {
+  const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [categories, setCategories] = React.useState<Category[]>(mockCategories);
+  const [isAddingCategory, setIsAddingCategory] = React.useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  const categoryFormRef = useRef<HTMLFormElement>(null);
+  const editFormRef = useRef<HTMLFormElement>(null);
 
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     category.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleAddCategory = (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!categoryFormRef.current) return;
+    
+    const formData = new FormData(categoryFormRef.current);
+    const categoryName = formData.get('name') as string;
+    const categoryDescription = formData.get('description') as string;
+    const categoryIcon = formData.get('icon') as string;
+    
+    if (!categoryName) {
+      toast.error("Category name is required");
+      return;
+    }
+    
+    addCategory({
+      name: categoryName,
+      description: categoryDescription,
+      icon: categoryIcon || 'folder',
+      status: 'active'
+    });
+    
+    toast.success("Category added successfully");
+    setIsAddingCategory(false);
+    categoryFormRef.current.reset();
+  };
+
+  const handleEditCategory = (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!editFormRef.current || !editingCategory) return;
+    
+    const formData = new FormData(editFormRef.current);
+    const categoryName = formData.get('name') as string;
+    const categoryDescription = formData.get('description') as string;
+    const categoryIcon = formData.get('icon') as string;
+    const categoryStatus = formData.get('status') as 'active' | 'inactive';
+    
+    if (!categoryName) {
+      toast.error("Category name is required");
+      return;
+    }
+    
+    updateCategory(editingCategory.id, {
+      name: categoryName,
+      description: categoryDescription,
+      icon: categoryIcon || editingCategory.icon,
+      status: categoryStatus || editingCategory.status
+    });
+    
+    toast.success("Category updated successfully");
+    setEditingCategory(null);
+  };
+
   const handleDeleteCategory = (id: string) => {
-    setCategories(categories.filter(cat => cat.id !== id));
+    deleteCategory(id);
+    toast.success("Category deleted successfully");
   };
 
   const getStatusColor = (status: Category['status']) => {
@@ -73,9 +113,39 @@ const AdminCategories: React.FC = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Categories</h1>
-          <Button>
-            Add Category
-          </Button>
+          <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Category</DialogTitle>
+              </DialogHeader>
+              <form ref={categoryFormRef} onSubmit={handleAddCategory} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Category Name *</Label>
+                  <Input id="name" name="name" placeholder="Enter category name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea id="description" name="description" placeholder="Enter category description" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="icon">Icon</Label>
+                  <Input id="icon" name="icon" placeholder="Icon name (e.g., 'shopping-bag')" />
+                </div>
+                <DialogFooter className="mt-6">
+                  <Button variant="outline" type="button" onClick={() => setIsAddingCategory(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Save Category</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="flex items-center space-x-2 mb-6">
@@ -95,7 +165,6 @@ const AdminCategories: React.FC = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Products</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -105,7 +174,6 @@ const AdminCategories: React.FC = () => {
               <TableRow key={category.id}>
                 <TableCell className="font-medium">{category.name}</TableCell>
                 <TableCell>{category.description}</TableCell>
-                <TableCell>{category.productCount}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(category.status)}`}>
                     {category.status}
@@ -119,12 +187,12 @@ const AdminCategories: React.FC = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEditingCategory(category)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600"
+                      <DropdownMenuItem 
+                        className="text-destructive"
                         onClick={() => handleDeleteCategory(category.id)}
                       >
                         <Trash className="mr-2 h-4 w-4" />
@@ -135,8 +203,83 @@ const AdminCategories: React.FC = () => {
                 </TableCell>
               </TableRow>
             ))}
+            {filteredCategories.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-muted-foreground mb-2">No categories found</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setIsAddingCategory(true)}
+                    >
+                      Add your first category
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+
+        {/* Edit Category Dialog */}
+        {editingCategory && (
+          <Dialog open={!!editingCategory} onOpenChange={(isOpen) => !isOpen && setEditingCategory(null)}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Edit Category</DialogTitle>
+              </DialogHeader>
+              <form ref={editFormRef} onSubmit={handleEditCategory} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Category Name *</Label>
+                  <Input 
+                    id="edit-name" 
+                    name="name" 
+                    defaultValue={editingCategory.name}
+                    placeholder="Enter category name" 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea 
+                    id="edit-description" 
+                    name="description" 
+                    defaultValue={editingCategory.description}
+                    placeholder="Enter category description" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-icon">Icon</Label>
+                  <Input 
+                    id="edit-icon" 
+                    name="icon" 
+                    defaultValue={editingCategory.icon}
+                    placeholder="Icon name (e.g., 'shopping-bag')" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <select 
+                    id="edit-status"
+                    name="status"
+                    defaultValue={editingCategory.status}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <DialogFooter className="mt-6">
+                  <Button variant="outline" type="button" onClick={() => setEditingCategory(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Update Category</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
     </div>
   );

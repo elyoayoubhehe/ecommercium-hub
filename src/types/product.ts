@@ -9,8 +9,9 @@ export interface Product {
   affiliateUrl?: string;
   specifications?: Record<string, string>;
   availability: boolean;
-  rating?: number;
-  reviewCount?: number;
+  rating: number;
+  reviewCount: number;
+  reviews: Review[];
   timestamp: Date;
 }
 
@@ -46,7 +47,7 @@ export interface Review {
   images?: string[];
 }
 
-export interface Filter {
+export interface SearchFilters {
   category?: string[];
   priceRange?: {
     min: number;
@@ -61,7 +62,7 @@ export interface Filter {
 export interface SearchResult {
   products: Product[];
   totalCount: number;
-  filters: Filter;
+  filters: SearchFilters;
   suggestedCategories?: Category[];
   relatedSearches?: string[];
 }

@@ -69,7 +69,9 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 };
 
 interface CartContextType {
+  state: CartState;
   items: CartItem[];
+  addItem: (item: CartItem) => void;
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -116,10 +118,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_CART' });
   };
 
+  const addItem = (item: CartItem) => {
+    dispatch({ type: 'ADD_ITEM', payload: item });
+  };
+
   return (
     <CartContext.Provider
       value={{
+        state,
         items: state.items,
+        addItem,
         addToCart,
         removeFromCart,
         updateQuantity,

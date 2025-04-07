@@ -1,0 +1,261 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{minted}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{Amazon Product Scraper with React Frontend\\
+\large Technical Documentation}
+\author{EcommerciumHub Project}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\section{Introduction}
+This report details the implementation of an Amazon product scraping system with a React frontend. The project combines Python web scraping with a modern React interface, demonstrating the integration of different technologies for a seamless user experience.
+
+\section{System Architecture}
+\subsection{Overview}
+The system consists of two main components:
+\begin{itemize}
+    \item Python Backend (Scraper and API)
+    \item React Frontend (User Interface)
+\end{itemize}
+
+\section{Web Scraping}
+\subsection{What is Web Scraping?}
+Web scraping is the automated extraction of data from websites. In our case, we're extracting product information from Amazon.
+
+\subsection{Implementation Details}
+Our scraper uses several Python libraries:
+\begin{lstlisting}[language=Python]
+import requests
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+\end{lstlisting}
+
+Key features:
+\begin{itemize}
+    \item User-Agent Rotation
+    \item Error Handling
+    \item Anti-blocking Measures
+\end{itemize}
+
+\subsection{Scraping Process}
+\begin{lstlisting}[language=Python]
+def scrape_amazon(search_term):
+    # Configure headers
+    headers = {
+        'User-Agent': UserAgent().random,
+        'Accept-Language': 'en-US,en;q=0.9'
+    }
+    
+    # Make request
+    url = f"https://www.amazon.com/s?k={search_term}"
+    response = requests.get(url, headers=headers)
+    
+    # Parse HTML
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Extract product data
+    products = []
+    for item in soup.find_all('div', {'data-component-type': 's-search-result'}):
+        product = {
+            'title': extract_title(item),
+            'price': extract_price(item),
+            'rating': extract_rating(item),
+            # ... more fields
+        }
+        products.append(product)
+    
+    return products
+\end{lstlisting}
+
+\section{API Integration}
+\subsection{What is an API?}
+An API (Application Programming Interface) is a set of rules that allows different software applications to communicate with each other.
+
+\subsection{Flask API Implementation}
+\begin{lstlisting}[language=Python]
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/api/search', methods=['GET'])
+def search_products():
+    search_term = request.args.get('q', '')
+    products = scrape_amazon(search_term)
+    return jsonify(products)
+\end{lstlisting}
+
+\section{HTTP and JSON}
+\subsection{HTTP Requests}
+HTTP (Hypertext Transfer Protocol) is the foundation of data communication on the web.
+
+Types of requests used in our project:
+\begin{itemize}
+    \item GET: Fetching product data
+    \item POST: (Future implementation for tracking products)
+\end{itemize}
+
+\subsection{JSON Data Format}
+JSON (JavaScript Object Notation) is our data format for communication:
+\begin{lstlisting}[language=JSON]
+{
+  "title": "iPhone 13",
+  "price": "$699",
+  "rating": "4.5",
+  "reviews": "2,345",
+  "image_url": "https://...",
+  "product_url": "https://..."
+}
+\end{lstlisting}
+
+\section{React Frontend}
+\subsection{Component Structure}
+\begin{lstlisting}[language=JavaScript]
+// ProductSearch.tsx
+export default function ProductSearch() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [products, setProducts] = useState([]);
+
+  const handleSearch = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/search?q=${searchTerm}`
+      );
+      const data = await response.json();
+      setProducts(data);
+    } catch (err) {
+      setError('Failed to fetch products');
+    }
+  };
+
+  return (
+    // JSX for rendering the interface
+  );
+}
+\end{lstlisting}
+
+\section{Frontend-Backend Communication}
+\subsection{Data Flow}
+1. User enters search term in React interface
+2. React makes HTTP request to Python backend
+3. Python scrapes Amazon and returns data
+4. React receives and displays the data
+
+\subsection{Code Integration}
+The connection between React and Python:
+\begin{lstlisting}[language=JavaScript]
+// React side (TypeScript)
+interface ScrapedProduct {
+  title: string;
+  price: string;
+  rating: string;
+  reviews: string;
+  image_url: string;
+  product_url: string;
+}
+
+const fetchProducts = async (searchTerm: string): 
+  Promise<ScrapedProduct[]> => {
+  const response = await fetch(
+    `http://localhost:3001/api/search?q=${searchTerm}`
+  );
+  return response.json();
+};
+\end{lstlisting}
+
+\section{Error Handling}
+\subsection{Backend Error Handling}
+\begin{lstlisting}[language=Python]
+@app.route('/api/search', methods=['GET'])
+def search_products():
+    try:
+        search_term = request.args.get('q', '')
+        products = scrape_amazon(search_term)
+        return jsonify(products)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+\end{lstlisting}
+
+\subsection{Frontend Error Handling}
+\begin{lstlisting}[language=JavaScript]
+const handleSearch = async () => {
+  try {
+    setIsLoading(true);
+    const data = await fetchProducts(searchTerm);
+    setProducts(data);
+  } catch (err) {
+    setError('Failed to fetch products');
+  } finally {
+    setIsLoading(false);
+  }
+};
+\end{lstlisting}
+
+\section{Running the Application}
+\subsection{Setup Instructions}
+1. Install Python dependencies:
+\begin{lstlisting}[language=bash]
+pip install -r requirements.txt
+\end{lstlisting}
+
+2. Install Node.js dependencies:
+\begin{lstlisting}[language=bash]
+npm install
+\end{lstlisting}
+
+3. Run both servers:
+\begin{lstlisting}[language=bash]
+npm run dev
+\end{lstlisting}
+
+\section{Conclusion}
+This project demonstrates the power of combining different technologies:
+\begin{itemize}
+    \item Python's strong web scraping capabilities
+    \item Flask's lightweight API framework
+    \item React's dynamic user interface
+    \item Modern web protocols (HTTP, JSON)
+\end{itemize}
+
+The result is a seamless application that allows users to search and compare Amazon products with a modern, responsive interface.
+
+\end{document} 

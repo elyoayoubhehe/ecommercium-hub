@@ -1,13 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ShoppingBag, User, Home, Search } from 'lucide-react';
+import { ShoppingBag, User, Home, Search, ShoppingCart } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { CartSlideout } from './cart/CartSlideout';
 
 export const ClientNav = () => {
   const location = useLocation();
   const { items: cartItems } = useCart();
+  
+  // Count total items in cart
+  const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
   const navItems = [
     {
@@ -24,6 +27,12 @@ export const ClientNav = () => {
       title: 'Search',
       href: '/client/search',
       icon: Search
+    },
+    {
+      title: 'Cart',
+      href: '/client/cart',
+      icon: ShoppingCart,
+      count: cartItemCount
     },
     {
       title: 'Profile',
@@ -46,7 +55,7 @@ export const ClientNav = () => {
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    'inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative',
                     location.pathname === item.href
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -54,6 +63,11 @@ export const ClientNav = () => {
                 >
                   <item.icon className="mr-2 h-4 w-4" />
                   {item.title}
+                  {item.count > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center">
+                      {item.count > 99 ? '99+' : item.count}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>

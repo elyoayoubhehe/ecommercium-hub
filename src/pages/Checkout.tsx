@@ -1,127 +1,163 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
-import { useCheckout } from '@/contexts/CheckoutContext';
+import { useOrders } from '@/contexts/OrdersContext';
 import { ClientNav } from '@/components/ClientNav';
 import { Button } from '@/components/ui/button';
-import { Steps } from '@/components/ui/steps';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 const Checkout = () => {
-  const { items: cartItems } = useCart();
-  const { currentStep, nextStep, prevStep } = useCheckout();
+  const { items: cartItems, clearCart } = useCart();
+  const { addOrder } = useOrders();
   const navigate = useNavigate();
+  const [customerName, setCustomerName] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Credit Card');
 
-  // Redirect to cart if cart is empty
-  useEffect(() => {
-    if (cartItems.length === 0) {
-      navigate('/client/cart');
+  // Calculate total
+  const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleCheckout = () => {
+    if (!customerName.trim()) {
+      toast.error("Please enter your name");
+      return;
     }
-  }, [cartItems.length, navigate]);
 
-  const renderStepStatus = (stepName: string): 'upcoming' | 'current' | 'complete' | 'pending' => {
-    const stepOrder = ['cart-review', 'shipping', 'payment'];
-    const currentIndex = stepOrder.indexOf(currentStep);
-    const stepIndex = stepOrder.indexOf(stepName);
+    if (!shippingAddress.trim()) {
+      toast.error("Please enter your shipping address");
+      return;
+    }
 
-    if (stepIndex < currentIndex) return 'complete';
-    if (stepIndex === currentIndex) return 'current';
-    return 'upcoming';
+    // Create a new order
+    const orderId = addOrder({
+      userId: "user-1", // In a real app, this would come from auth
+      customerName,
+      shippingAddress,
+      paymentMethod,
+      items: cartItems.map(item => ({
+        productId: item.id,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      total: total,
+      status: 'pending'
+    });
+
+    // Show success message
+    toast.success("Order placed successfully!");
+
+    // Clear the cart
+    clearCart();
+
+    // Save order ID to use on success page
+    localStorage.setItem('lastOrderId', orderId);
+
+    // Navigate to success page
+    navigate('/client/order-success');
   };
 
-  const steps = [
-    {
-      title: 'Cart Review',
-      description: 'Review your items',
-      status: renderStepStatus('cart-review')
-    },
-    {
-      title: 'Shipping',
-      description: 'Enter shipping details',
-      status: renderStepStatus('shipping')
-    },
-    {
-      title: 'Payment',
-      description: 'Complete payment',
-      status: renderStepStatus('payment')
-    }
-  ];
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ClientNav />
+        <main className="container mx-auto px-4 py-8">
+          <Card className="p-6">
+            <p className="text-center text-muted-foreground">Your cart is empty</p>
+            <div className="mt-4 text-center">
+              <Button onClick={() => navigate('/client/products')}>
+                Continue Shopping
+              </Button>
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <ClientNav />
       <main className="container mx-auto px-4 py-8">
-        <Steps steps={steps} className="mb-8" />
+        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="md:col-span-2">
-            {currentStep === 'cart-review' && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Cart Review</h2>
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
-                    </div>
-                    <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+        <div className="grid gap-8 md:grid-cols-2">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+            <div className="space-y-4">
+              {cartItems.map(item => (
+                <div key={item.id} className="flex justify-between">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Quantity: {item.quantity}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {currentStep === 'shipping' && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Shipping Details</h2>
-                {/* Add shipping form here */}
-              </div>
-            )}
-
-            {currentStep === 'payment' && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Payment</h2>
-                {/* Add payment form here */}
-              </div>
-            )}
-          </div>
-
-          {/* Order Summary */}
-          <Card className="p-4">
-            <h2 className="text-lg font-bold mb-4">Order Summary</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>${cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping</span>
-                <span>Free</span>
-              </div>
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between font-bold">
+                  <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+              ))}
+              <div className="pt-4 border-t">
+                <div className="flex justify-between font-semibold">
                   <span>Total</span>
-                  <span>${cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)}</span>
+                  <span>${total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
           </Card>
-        </div>
 
-        <div className="flex justify-between mt-8">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={currentStep === 'cart-review'}
-          >
-            Previous
-          </Button>
-          <Button
-            onClick={nextStep}
-            disabled={currentStep === 'payment'}
-          >
-            {currentStep === 'payment' ? 'Place Order' : 'Next'}
-          </Button>
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Customer Information</h2>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="Enter your name" 
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="address">Shipping Address</Label>
+                  <Input 
+                    id="address" 
+                    placeholder="Enter your shipping address"
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)} 
+                  />
+                </div>
+              </div>
+            </Card>
+            
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Payment</h2>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="payment">Payment Method</Label>
+                  <select 
+                    id="payment"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                </div>
+                
+                <Button 
+                  className="w-full mt-4" 
+                  onClick={handleCheckout}
+                >
+                  Complete Order
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
