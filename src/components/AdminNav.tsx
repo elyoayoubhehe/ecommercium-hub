@@ -1,55 +1,74 @@
-import { Settings, LogOut, Plus, Users } from "lucide-react";
-import { Button } from "./ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  ShoppingCart,
+  Tags,
+  Settings
+} from 'lucide-react';
+
+const navItems = [
+  {
+    title: 'Dashboard',
+    href: '/admin',
+    icon: LayoutDashboard
+  },
+  {
+    title: 'Products',
+    href: '/admin/products',
+    icon: Package
+  },
+  {
+    title: 'Categories',
+    href: '/admin/categories',
+    icon: Tags
+  },
+  {
+    title: 'Orders',
+    href: '/admin/orders',
+    icon: ShoppingCart
+  },
+  {
+    title: 'Users',
+    href: '/admin/users',
+    icon: Users
+  },
+  {
+    title: 'Settings',
+    href: '/admin/settings',
+    icon: Settings
+  }
+];
 
 export const AdminNav = () => {
-  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
-    <nav className="border-b">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center space-x-8">
-          <Link to="/admin" className="text-xl font-bold text-primary">E-Shop Admin</Link>
-          <div className="hidden md:flex space-x-6">
-            <Link 
-              to="/admin" 
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Dashboard
-            </Link>
-            <Link 
-              to="/admin/products" 
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Products
-            </Link>
-            <Link 
-              to="/admin/orders" 
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Orders
-            </Link>
-            <Link 
-              to="/admin/users" 
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Users
-            </Link>
+    <nav className="border-b bg-background">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center">
+          <Link to="/admin" className="text-xl font-bold mr-8">
+            Admin Dashboard
+          </Link>
+          <div className="flex space-x-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  'inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                  location.pathname === item.href
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                )}
+              >
+                <item.icon className="h-4 w-4 mr-2" />
+                {item.title}
+              </Link>
+            ))}
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/client')}
-            className="flex items-center gap-2"
-          >
-            <Users className="w-4 h-4" />
-            Switch to Client View
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Settings className="w-5 h-5" />
-          </Button>
         </div>
       </div>
     </nav>
